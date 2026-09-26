@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kalkulator Umur — Neon</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="tagline">// Age Calculator</div>
+      <h1>Kalkulator Umur</h1>
+      <p>Hitung umur secara detail — hari, tanggal, bulan &amp; tahun</p>
+    </div>
+
+    <!-- FORM INPUT -->
+    <div class="card">
+      <div class="form-group">
+        <label for="tglLahir">📅 Tanggal Lahir</label>
+        <input type="date" id="tglLahir" />
+      </div>
+
+      <div class="form-group">
+        <label for="tglTarget">🎯 Tanggal Pembanding</label>
+        <div class="input-row">
+          <input type="date" id="tglTarget" />
+          <button type="button" class="btn-today" id="btnHariIni">📌 Hari Ini</button>
+        </div>
+      </div>
+
+      <button class="btn-hitung" id="btnHitung">Hitung Umur</button>
+
+      <div class="alert" id="alert"></div>
+    </div>
+
+    <!-- HASIL -->
+    <div id="hasil">
+      <div class="card">
+        <div class="hasil-utama">
+          <div class="hasil-item">
+            <div class="angka" id="rTahun">0</div>
+            <div class="label">Tahun</div>
+          </div>
+          <div class="hasil-item">
+            <div class="angka" id="rBulan">0</div>
+            <div class="label">Bulan</div>
+          </div>
+          <div class="hasil-item">
+            <div class="angka" id="rHari">0</div>
+            <div class="label">Hari</div>
+          </div>
+        </div>
+
+        <div class="section-title">Detail Tanggal</div>
+        <div class="detail-list">
+          <div class="detail-item">
+            <div class="icon">👶</div>
+            <div>
+              <div class="judul">Tanggal Lahir</div>
+              <div class="isi" id="rDetailLahir">-</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="icon">🎯</div>
+            <div>
+              <div class="judul">Tanggal Pembanding</div>
+              <div class="isi" id="rDetailTarget">-</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="icon">🎂</div>
+            <div>
+              <div class="judul">Ulang Tahun Berikutnya</div>
+              <div class="isi" id="rUltah">-</div>
+              <small id="rUltahCountdown"></small>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="icon">✨</div>
+            <div>
+              <div class="judul">Zodiak</div>
+              <div class="isi"><span class="badge" id="rZodiak">-</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">Total Waktu Berlalu</div>
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="angka" id="tBulan">-</div>
+            <div class="label">Bulan</div>
+          </div>
+          <div class="stat-box">
+            <div class="angka" id="tMinggu">-</div>
+            <div class="label">Minggu</div>
+          </div>
+          <div class="stat-box">
+            <div class="angka" id="tHari">-</div>
+            <div class="label">Hari</div>
+          </div>
+          <div class="stat-box">
+            <div class="angka" id="tJam">-</div>
+            <div class="label">Jam</div>
+          </div>
+          <div class="stat-box">
+            <div class="angka" id="tMenit">-</div>
+            <div class="label">Menit</div>
+          </div>
+          <div class="stat-box">
+            <div class="angka" id="tDetik">-</div>
+            <div class="label">Detik</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">⌁ Neon Age Calculator ⌁</div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Nama hari & bulan dalam Bahasa Indonesia =====
+    const NAMA_HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    const NAMA_BULAN = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+    ];
+
+    const elLahir = document.getElementById("tglLahir");
+    const elTarget = document.getElementById("tglTarget");
+    const btnHariIni = document.getElementById("btnHariIni");
+    const btnHitung = document.getElementById("btnHitung");
+    const elAlert = document.getElementById("alert");
+    const elHasil = document.getElementById("hasil");
+
+    const formatter = new Intl.NumberFormat("id-ID");
+
+    // ===== Util =====
+
+    // Parse "YYYY-MM-DD" sebagai waktu LOKAL (hindari pergeseran tanggal karena timezone)
+    function parseDateInput(value) {
+      const [y, m, d] = value.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    // Format ke: "Selasa, 15 Agustus 2000"
+    function formatLengkap(date) {
+      const hari = NAMA_HARI[date.getDay()];
+      const tanggal = date.getDate();
+      const bulan = NAMA_BULAN[date.getMonth()];
+      const tahun = date.getFullYear();
+      return `${hari}, ${tanggal} ${bulan} ${tahun}`;
+    }
+
+    function jumlahHariDalamBulan(tahun, bulan1based) {
+      return new Date(tahun, bulan1based, 0).getDate();
+    }
+
+    function selisihHari(a, b) {
+      // Normalisasi via UTC agar aman dari DST
+      const ua = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+      const ub = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+      return Math.floor((ub - ua) / 86400000);
+    }
+
+    // ===== Tombol "Hari Ini" =====
+    function isiTanggalHariIni() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      elTarget.value = `${yyyy}-${mm}-${dd}`;
+      hitungUmur(); // langsung hitung setelah tombol diklik
+    }
+
+    btnHariIni.addEventListener("click", isiTanggalHariIni);
+
+    // ===== Zodiak =====
+    function getZodiak(tgl, bulan1based) {
+      const batas = [20, 19, 21, 20, 21, 21, 23, 23, 23, 23, 22, 22];
+      const nama = [
+        "Capricorn ♑", "Aquarius ♒", "Pisces ♓", "Aries ♈", "Taurus ♉", "Gemini ♊",
+        "Cancer ♋", "Leo ♌", "Virgo ♍", "Libra ♎", "Scorpio ♏", "Sagittarius ♐", "Capricorn ♑",
+      ];
+      return tgl < batas[bulan1based - 1] ? nama[bulan1based - 1] : nama[bulan1based];
+    }
+
+    // ===== Hitung umur =====
+    function hitungUmur() {
+      elAlert.className = "alert";
+      elAlert.textContent = "";
+
+      if (!elLahir.value || !elTarget.value) {
+        tampilkanError("Mohon isi tanggal lahir dan tanggal pembanding terlebih dahulu.");
+        return;
+      }
+
+      const lahir = parseDateInput(elLahir.value);
+      const target = parseDateInput(elTarget.value);
+
+      if (target < lahir) {
+        tampilkanError("Tanggal pembanding tidak boleh lebih awal dari tanggal lahir.");
+        return;
+      }
+
+      // --- Umur: tahun, bulan, hari ---
+      let tahun = target.getFullYear() - lahir.getFullYear();
+      let bulan = target.getMonth() - lahir.getMonth();
+      let hari = target.getDate() - lahir.getDate();
+
+      if (hari < 0) {
+        bulan--;
+        let blnSebelum = target.getMonth();
+        let thnSebelum = target.getFullYear();
+        if (blnSebelum === 0) {
+          blnSebelum = 12;
+          thnSebelum--;
+        }
+        hari += jumlahHariDalamBulan(thnSebelum, blnSebelum);
+      }
+
+      if (bulan < 0) {
+        tahun--;
+        bulan += 12;
+      }
+
+      // --- Tampilkan hasil utama ---
+      document.getElementById("rTahun").textContent = tahun;
+      document.getElementById("rBulan").textContent = bulan;
+      document.getElementById("rHari").textContent = hari;
+
+      // --- Detail tanggal (hari, tanggal, bulan, tahun) ---
+      document.getElementById("rDetailLahir").textContent = formatLengkap(lahir);
+      document.getElementById("rDetailTarget").textContent = formatLengkap(target);
+
+      // --- Ulang tahun berikutnya ---
+      let ultahBerikutnya = new Date(
+        target.getFullYear(),
+        lahir.getMonth(),
+        lahir.getDate()
+      );
+      if (ultahBerikutnya < target) {
+        ultahBerikutnya = new Date(
+          target.getFullYear() + 1,
+          lahir.getMonth(),
+          lahir.getDate()
+        );
+      }
+      const menujuUltah = selisihHari(target, ultahBerikutnya);
+      const umurUltah = ultahBerikutnya.getFullYear() - lahir.getFullYear();
+      document.getElementById("rUltah").textContent = formatLengkap(ultahBerikutnya);
+      document.getElementById("rUltahCountdown").textContent =
+        menujuUltah === 0
+          ? `🎉 Hari ini ulang tahun ke-${umurUltah}! Selamat!`
+          : `${menujuUltah} hari lagi — merayakan ulang tahun ke-${umurUltah}`;
+
+      // --- Zodiak ---
+      document.getElementById("rZodiak").textContent = getZodiak(
+        lahir.getDate(),
+        lahir.getMonth() + 1
+      );
+
+      // --- Total waktu berlalu ---
+      const totalHari = selisihHari(lahir, target);
+      const totalBulan = tahun * 12 + bulan;
+      const totalMinggu = Math.floor(totalHari / 7);
+      const sisaHariMinggu = totalHari % 7;
+      const totalJam = totalHari * 24;
+      const totalMenit = totalJam * 60;
+      const totalDetik = totalMenit * 60;
+
+      document.getElementById("tBulan").textContent =
+        `${formatter.format(totalBulan)} bln ${hari} hr`;
+      document.getElementById("tMinggu").textContent =
+        `${formatter.format(totalMinggu)} mgg ${sisaHariMinggu} hr`;
+      document.getElementById("tHari").textContent = `${formatter.format(totalHari)} hari`;
+      document.getElementById("tJam").textContent = `${formatter.format(totalJam)} jam`;
+      document.getElementById("tMenit").textContent = `${formatter.format(totalMenit)} mnt`;
+      document.getElementById("tDetik").textContent = `${formatter.format(totalDetik)} dtk`;
+
+      elHasil.classList.add("show");
+    }
+
+    function tampilkanError(pesan) {
+      elAlert.className = "alert error";
+      elAlert.textContent = "⚠️ " + pesan;
+      elHasil.classList.remove("show");
+    }
+
+    // ===== Event =====
+    btnHitung.addEventListener("click", hitungUmur);
+    elLahir.addEventListener("change", hitungUmur);
+    elTarget.addEventListener("change", hitungUmur);
+
+    // Isi otomatis tanggal pembanding dengan hari ini saat halaman dibuka
+    (function init() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      elTarget.value = `${yyyy}-${mm}-${dd}`;
+    })();
+  </script>
+</body>
+</html>
